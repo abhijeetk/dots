@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Dots Clone</title>
+    <style>
+      pre { margin-left: 15px !important }
+    </style>
+
+    <script src="fabric.js"></script>
+  </head>
+  <body onload="init()">
+
+
+
+    <div id="bd-wrapper" ng-controller="CanvasControls">
+	<h2>Moves : <span id="moves">0</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Score : <span id="result">0</span></h2>
+    
+      <canvas id="c" width="550" height="550" style="border:1px dotted #ccc"></canvas>
+    </div>
+	  <span id="log"></span>
+<script id="main">
+
+	function ColorLuminance(hex, lum) {
+
+		// validate hex string
+		hex = String(hex).replace(/[^0-9a-f]/gi, '');
+		if (hex.length < 6) {
+			hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+		}
+		lum = lum || 0;
+
+		// convert to decimal and change luminosity
+		var rgb = "#", c, i;
+		for (i = 0; i < 3; i++) {
+			c = parseInt(hex.substr(i*2,2), 16);
+			c = Math.round(Math.min(Math.max(0, c + (c * lum)), 255)).toString(16);
+			rgb += ("00"+c).substr(c.length);
+		}
+
+		return rgb;
+	}
+
+	function blinkTemp(arr)
+	{
+		var objs = fabric.Canvas.activeInstance._objects;			
+		for(var i = 0; i < arr.length; i++)
+		{
+			var color_new = ['#FF0000', '#339933', '#0000CC', '#FFFF00', '#CC33FF'][fabric.util.getRandomInt(0,5) % 5];
+			objs[arr[i]].setFill(color_new);
+		}
+		this.__canvas.renderAll.bind(this.__canvas)
+
+	}
+	
+	function blinkAnimationIncrease(arr)
+	{
+		var objs = fabric.Canvas.activeInstance._objects;
+		var refObj;
+		if (arr && arr.length > 0)
+			refObj = fabric.Canvas.activeInstance._objects[arr[0]];
+			
+	    if(refObj.radius < 20) {
+			setTimeout(function() { 
+			    for(var i = 0; i < arr.length; i++)
+				{
+					objs[arr[i]].radius = refObj.radius + 1;
+				}
+				
+				if(refObj.radius > 20)
+				{
+					for(var i = 0; i < arr.length; i++)
+					{
+						objs[arr[i]].radius = 20;
+					}
+				}
+				
+			this.__canvas.renderAll();
+			blinkAnimationIncrease(arr);
+			}, 20);
+		}
+		else 
+		{
+			for(var i = 0; i < arr.length; i++)
+			{
+				objs[arr[i]].radius = 20;
+			}
+		}
+	}
+	
+	function blinkAnimation(arr)
+  	{
+	    var objs = fabric.Canvas.activeInstance._objects;
+		var refObj;
+		if (arr && arr.length > 0)
+			refObj = fabric.Canvas.activeInstance._objects[arr[0]];
+		
+		if (refObj && refObj.radius > 10) {
+			setTimeout(function() { 
+			    for(var i = 0; i < arr.length; i++)
+				{
+					objs[arr[i]].radius = refObj.radius - 1;
+				}
+				
+
+				if (refObj.radius < 10)
+				{
+					for(var i = 0; i < arr.length; i++)
+					{
+						objs[arr[i]].radius = 10;
+					}
+				}
+					
+				this.__canvas.renderAll();
+				blinkAnimation(arr);
+			}, 20);
+		}else if(refObj.radius <= 20) {
+			blinkTemp(arr);
+			blinkAnimationIncrease(arr);
+		}
+	}
+	
+	var pattern = []
+	function init()
+	{
+		var canvas = this.__canvas = new fabric.Canvas('c');
+		canvas.row = 5;
+		canvas.coloumn = 5;
+		canvas.selection = false;
+		canvas.hoverCursor = 'default';
+		pattern = [];
+		mouseDown = false;
+		var currentDot;
+		
+		canvas.on('mouse:over', function(e) {
+			if(e.target.handled) {
+				e.target.setStrokeWidth(5);
+				e.target.setStroke('black');
+				canvas.renderAll();
+			}
+		});
+
+		canvas.on('mouse:out', function(e) {
+		if (e.target) console.log('mouse:out' + " r: " + e.target.row + " c: " + e.target.coloumn);
+			if(e.target.handled) {
+				e.target.setStrokeWidth(0);
+				canvas.renderAll();
+			}
+		});
+	  
+		canvas.on({
+			'mouse:move': function(e) {
+				var activeObject = e.target;
+				//if(activeObject) console.log(activeObject.handled);
+				if(mouseDown)
+				{
+					if(activeObject && activeObject.type == "circle" && activeObject.handled == false)
+					{
+						
+						if (pattern.length == 0)
+						{
+							pattern.push(((activeObject.row-1)*canvas.coloumn+activeObject.coloumn)-1);
+							activeObject.handled = true;
+							
+							var centerX = activeObject.left + activeObject.width/2;
+							var centerY = activeObject.top + activeObject.height/2;						
+							var line = new fabric.Line([centerX-5, centerY-5, centerX, centerY], {fill: activeObject.fill,stroke: activeObject.fill,strokeWidth: 10,selectable: false,type:'line'});
+							canvas.add(line);
+							console.log("Line added. r:" + activeObject.row + " c: " + activeObject.coloumn);
+							activeObject.line = line;
+						}
+						else
+						{
+							
+							var start = fabric.Canvas.activeInstance._objects[pattern[pattern.length-1]];
+							if(activeObject.fill == start.fill && (activeObject.row == start.row || activeObject.coloumn == start.coloumn))
+							{
+								/*	Adjacent dots should be considered as candidate */
+								if ((activeObject.row == start.row && (activeObject.coloumn == start.coloumn - 1 || activeObject.coloumn == start.coloumn + 1)) || 
+								(activeObject.coloumn == start.coloumn && (activeObject.row == start.row - 1 || activeObject.row == start.row + 1)))
+								{
+									pattern.push(((activeObject.row-1)*canvas.coloumn+activeObject.coloumn)-1);
+									activeObject.handled = true;
+									
+									var centerX = activeObject.left + activeObject.width/2;
+									var centerY = activeObject.top + activeObject.height/2;	
+									
+									start.line.set({ 'x2': centerX-5, 'y2': centerY-5, });
+									
+									var line = new fabric.Line([centerX-5, centerY-5, centerX, centerY], {fill: activeObject.fill,stroke: activeObject.fill,strokeWidth: 10,selectable: false,type:'line'});
+									canvas.add(line);
+									console.log("Line added. r:" + activeObject.row + " c: " + activeObject.coloumn);
+									activeObject.line = line;
+								}
+							
+							}
+						}
+						
+						if (activeObject.handled)
+						{
+							activeObject.setStrokeWidth(5);
+							activeObject.setStroke(ColorLuminance('#000000', 0.9));
+							canvas.renderAll();
+						}
+					}
+					
+					if (pattern.length>0)
+					{
+						var currObj = fabric.Canvas.activeInstance._objects[pattern[pattern.length-1]];
+						var offset = fabric.Canvas.activeInstance._offset;
+						console.log("Draw line . r:" + currObj.row + " c: " + currObj.coloumn);
+						if (currObj && currObj.line && currObj.line.set) {
+							currObj.line.set({ 'x2': e.e.clientX - offset.left, 'y2': e.e.clientY - offset.top, });
+							canvas.renderAll();
+						}
+					}
+					
+				}
+			},
+			'mouse:up': function(e) {
+			    mouseDown = false;
+				if (pattern.length > 1) {
+					document.getElementById("moves").innerHTML = parseInt(document.getElementById("moves").innerHTML) + 1;
+					document.getElementById("result").innerHTML = parseInt(document.getElementById("result").innerHTML) + (pattern.length*10);
+				}
+				
+				for(var i = 0; i < pattern.length; i++) {
+					console.log(pattern[i] + 1);
+					var obj = fabric.Canvas.activeInstance._objects[pattern[i]];
+					obj.handled = false;
+					console.log("r" + obj.row + " : c " + obj.coloumn);
+					obj.setStrokeWidth(0);
+					canvas.remove(obj.line);
+					
+					if (pattern.length > 1)
+						blinkAnimation(pattern);
+				}
+				canvas.renderAll();
+				pattern=[];
+
+			},
+			'mouse:down': function(e) {
+			    mouseDown = true;
+				pattern=[];
+				
+				var activeObject = e.target;
+
+				if(activeObject && activeObject.type == "circle" && activeObject.handled == false)
+				{
+					if (pattern.length == 0)
+						{
+							pattern.push(((activeObject.row-1)*canvas.coloumn+activeObject.coloumn)-1);
+							activeObject.handled = true;
+							activeObject.setStrokeWidth(5);
+							activeObject.setStroke('black');
+							canvas.renderAll();
+							
+							var centerX = activeObject.left + activeObject.width/2;
+							var centerY = activeObject.top + activeObject.height/2;						
+							var line = new fabric.Line([centerX-5, centerY-5, centerX, centerY], {fill: activeObject.fill,stroke: activeObject.fill,strokeWidth: 10,selectable: false,type:'line'});
+							canvas.add(line);
+							console.log("Line added. r:" + activeObject.row + " c: " + activeObject.coloumn);
+							activeObject.line = line;
+						}
+				}
+			},
+		});
+		
+		populateScreen();
+	}
+	
+	function populateScreen(canvas)
+	{
+		// add random objects
+	    for (var r = 0; r < this.__canvas.row; r++) {
+		var dim = 20;
+		var klass = 'Circle';
+		var options = [];
+
+		for (var c = 0; c < this.__canvas.coloumn; c++) {
+		    var cIndex = fabric.util.getRandomInt(0,5) % 5;
+		    var color = ['#FF0000', '#339933', '#0000CC', '#FFFF00', '#CC33FF'][cIndex];
+			options = {
+			  top: r*110,
+			  left: c*110,
+			  fill: color,
+			  hasControls : false,
+			  selectable : false,
+			  hasBorders : false,
+			  lockScalingX : true,
+			  lockScalingY : true,
+			  strokeWidth : 0,
+			  stroke: '#666',
+			  row: (r+1),
+			  coloumn : (c+1),
+			  selectable: false,
+			  hasControls: false,
+			  handled: false,
+			  type: "circle",
+			  line: 'undefined',
+			};
+
+			if (klass === 'Circle') {
+			  options.radius = dim;
+			}
+			else {
+			  options.width = dim;
+			  options.height = dim;
+			}
+			this.__canvas.add(new fabric[klass](options));
+		}
+	  }
+
+	}
+</script>
+    <script>
+	/*
+(function() {
+  fabric.util.addListener(fabric.window, 'load', function() {
+    var canvas = this.__canvas || this.canvas,
+        canvases = this.__canvases || this.canvases;
+
+    canvas && canvas.calcOffset && canvas.calcOffset();
+
+    if (canvases && canvases.length) {
+      for (var i = 0, len = canvases.length; i < len; i++) {
+        canvases[i].calcOffset();
+      }
+    }
+  });
+})();
+*/
+</script>
+
+
+</body>
+</html>
